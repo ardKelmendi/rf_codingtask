@@ -1,27 +1,18 @@
 import datetime
-
-import flask_restless
 from flask import  make_response
-from flask_sqlalchemy import SQLAlchemy
 from flask import Flask, request, jsonify
 from models import Category, Product, Sales
 
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 # https://flask-restless.readthedocs.io/en/latest/quickstart.html
 
 # Create the Flask application and the Flask-SQLAlchemy object.
 app = Flask(__name__)
 
-methods = ['GET', 'POST', 'PUT']
-
-
+#simple `dataset`
 p_list = [Product(1,'fish', '1234', '235', 'sea', 'kg'), Product(2,'chicken', '154', '25', 'meat', 'kg')]
 s_list = [Sales(1, '512', 50, datetime.datetime(2020, 5, 17)), Sales(2, '512', 50, datetime.datetime(2019, 4, 17))]
 c_list = [Category(1, 'import'), Category(2, 'export')]
-
 
 
 @app.route('/')
