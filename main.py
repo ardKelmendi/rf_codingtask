@@ -1,3 +1,5 @@
+import datetime
+
 import flask_restless
 from flask import  make_response
 from flask_sqlalchemy import SQLAlchemy
@@ -15,12 +17,10 @@ app = Flask(__name__)
 
 methods = ['GET', 'POST', 'PUT']
 
-p = Product(1, 'ard')
-p2 = Product(2, 'uran')
 
-p_list = [p, p2]
-s_list = [Sales(1, 10), Sales(2, 20)]
-c_list = [Category(1, 100), Category(2, 200)]
+p_list = [Product(1,'fish', '1234', '235', 'sea', 'kg'), Product(2,'chicken', '154', '25', 'meat', 'kg')]
+s_list = [Sales(1, '512', 50, datetime.datetime(2020, 5, 17)), Sales(2, '512', 50, datetime.datetime(2019, 4, 17))]
+c_list = [Category(1, 'import'), Category(2, 'export')]
 
 
 
@@ -43,6 +43,47 @@ def normalize_query(params):
     return {k: normalize_query_param(v) for k, v in params_non_flat.items()}
 
 
+def get_json_categories(req_data):
+    id = req_data['id']
+    name = req_data['name']
+    return id,name
+
+
+def get_json_products(req_data):
+    id = req_data['id']
+    name = req_data['name']
+    unit = req_data['unit']
+    quantity = req_data['quantity']
+    category = req_data['category']
+    measurement_unit = req_data['measurement_unit']
+    return id, name, unit, quantity, category, measurement_unit
+
+
+def get_json_sales(req_data):
+    id = req_data['id']
+    product = req_data['product']
+    units_sold = req_data['units_sold']
+    sold_date = req_data['sold_date']
+    return id, product, units_sold, sold_date
+
+
+def add_category(id, name):
+    c_list.append(Category(id, name))
+    return make_response(jsonify({"message": "Collection created"}), 201)
+    # return jsonify(p.serialize)
+
+
+def add_product(id, name, unit, quantity, category, measurement_unit):
+    p_list.append(Product(id, name, quantity, category, measurement_unit))
+    return make_response(jsonify({"message": "Collection created"}), 201)
+
+
+def add_sale(id, product, units_sold, sold_date):
+    s_list.append(Sales(id, product, units_sold, sold_date))
+    return make_response(jsonify({"message": "Collection created"}), 201)
+
+
+
 @app.route('/')
 @app.route('/api/<categories>/<int:request_id>', methods=['GET', 'PUT', 'POST'])
 def productFunction(categories, request_id):
@@ -51,21 +92,51 @@ def productFunction(categories, request_id):
         return getRequest_byId(categories, request_id)
     elif request.method == 'POST':
         req_data = request.get_json()
-        id = req_data['id']
-        title = req_data['name']
-        found, target = requestInData(categories, id)
-        if found:
-            return make_response(jsonify({"error": "Collection already exists"}), 400)
-        return makeANewCategory(id, title)
+        if categories == "categories":
+            c_id, c_name = get_json_categories(req_data)
+            found, target = requestInData(c_id, categories)
+            if found:
+                return make_response(jsonify({"error": "Entity already exists"}), 400)
+            add_category(c_id, c_name)
+
+        elif categories == "products":
+            p_id, p_name, p_unit, p_quantity, p_category, p_measurement_unit = get_json_products(req_data)
+            found, target = requestInData(p_id, categories)
+            if found:
+                return make_response(jsonify({"error": "Entity already exists"}), 400)
+            add_product(p_id, p_name, p_unit, p_quantity, p_category, p_measurement_unit)
+
+        elif categories == "sales":
+            s_id, s_product, s_units_sold, s_sold_date = get_json_sales(req_data)
+            found, target = requestInData(s_id, categories)
+            if found:
+                return make_response(jsonify({"error": "Entity already exists"}), 400)
+            add_sale(s_id, s_product, s_units_sold, s_sold_date)
+
     elif request.method == 'PUT':
         req_data = request.get_json()
-        id = req_data['id']
-        title = req_data['name']
-        found, target = requestInData(categories, request_id)
-        if found:
-            return update(target, title)
-        else:
-            return makeANewCategory(id, title)
+        found, target = requestInData(request_id, categories)
+
+        if categories == "categories":
+            c_id, c_name = get_json_categories(req_data)
+            if found:
+                return update_category(target, c_id, c_name)
+            else:
+                return add_category(c_id, c_name)
+
+        elif categories == "products":
+            p_id, p_name, p_unit, p_quantity, p_category, p_measurement_unit = get_json_products(req_data)
+            if found:
+                return update_product(target, p_id, p_name, p_unit, p_quantity, p_category, p_measurement_unit)
+            else:
+                return add_product(p_id, p_name, p_unit, p_quantity, p_category, p_measurement_unit)
+
+        elif categories == "sales":
+            s_id, s_product, s_units_sold, s_sold_date = get_json_sales(req_data)
+            if found:
+                return update_sale(target, s_id, s_product, s_units_sold, s_sold_date)
+            else:
+                return add_sale(s_id, s_product, s_units_sold, s_sold_date)
 
 
 # Implement an endpoint which can be used to select/filter the products by their quantity - using
@@ -79,15 +150,15 @@ def return_queries(args):
 
     if "quantity_gt" in args and "quantity_lt" in args:
         for pl in s_list:
-            if left_bound < pl.sales < right_bound:
+            if left_bound < pl.units_sold < right_bound:
                 data.append(pl.serialize)
     elif "quantity_gt" in args:
         for pl in s_list:
-            if left_bound < pl.sales:
+            if left_bound < pl.units_sold:
                 data.append(pl.serialize)
     elif "quantity_lt" in args:
         for pl in s_list:
-            if pl.sales < right_bound:
+            if pl.units_sold < right_bound:
                 data.append(pl.serialize)
     else:
         return make_response(jsonify({"error": "query not supported"}), 404)
@@ -112,12 +183,33 @@ def requestInData(id, category):
         return searchTarget(id, p_list)
     elif category == "sales":
         return searchTarget(id, s_list)
+    else:
+        return make_response(jsonify({"error": "Path not supported"}), 404)
 
 
-def update(target, title):
-    target.name = title
+def update_product(target, id, name, unit, quantity, category, measurement_unit):
+    target.id = id
+    target.name = name
+    target.unit = unit
+    target.quantity = quantity
+    target.category = category
+    target.measurement_unit = measurement_unit
     return make_response(jsonify({"message": "Collection replaced"}), 200)
     # return jsonify(target.serialize)
+
+
+def update_category(target, id, name):
+    target.id = id
+    target.name = name
+    return make_response(jsonify({"message": "Collection replaced"}), 200)
+
+
+def update_sale(target, id, product, units_sold, sold_date):
+    target.id = id
+    target.product = product
+    target.units_sold = units_sold
+    return make_response(jsonify({"message": "Collection replaced"}), 200)
+
 
 
 def appendData(list):
@@ -148,11 +240,6 @@ def getRequest_all(category):
     # return jsonify(category=[b.serialize for b in category])
 
 
-def makeANewCategory(id, name):
-    p = Product(id, name)
-    p_list.append(p)
-    return make_response(jsonify({"message": "Collection created"}), 201)
-    # return jsonify(p.serialize)
 
 
 if __name__ == "__main__":
