@@ -11,8 +11,10 @@ to run flask_restless
 `git clone https://github.com/jfinkels/flask-restless`
 
  `cd flask-restless`
- `pip install -r requirements-doc.txt`
 
-To run write `python main.py`
+`pip install -r requirements-doc.txt`
+
+To run write 
+`python main.py`
 
 Ard Kelmendi
