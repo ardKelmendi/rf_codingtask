@@ -1,32 +1,17 @@
 import flask_restless
-from flask import Flask, make_response
-# from flask.ext.sqlalchemy import SQLAlchemy
+from flask import  make_response
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, ForeignKey, Integer, String
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session
+from flask import Flask, request, jsonify
 from models import Category, Product, Sales
 
-from sqlalchemy import Column, Integer, Unicode
-from sqlalchemy import ForeignKey
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import backref, relationship
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 # https://flask-restless.readthedocs.io/en/latest/quickstart.html
 
 # Create the Flask application and the Flask-SQLAlchemy object.
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///people.db'
-db = SQLAlchemy(app)
-
-engine = create_engine('sqlite:////tmp/testdb.sqlite', convert_unicode=True)
-Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-mysession = scoped_session(Session)
-
-Base = declarative_base()
-Base.metadata.bind = engine
-
 
 methods = ['GET', 'POST', 'PUT']
 
@@ -110,14 +95,6 @@ def makeANewCategory(id, name):
     return make_response(jsonify({"message": "Collection created"}), 201)
     # return jsonify(p.serialize)
 
-
-
-
-# Create the Flask-Restless API manager.
-manager = flask_restless.APIManager(app, flask_sqlalchemy_db=db)
-
-# Create API endpoints, which will be available at /api/<tablename> by
-# default. Allowed HTTP methods can be specified as well.
 
 if __name__ == "__main__":
     app.run()
