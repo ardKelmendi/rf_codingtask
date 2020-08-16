@@ -209,7 +209,10 @@ class sale_dict:
         self.units = units
 
 
-class Sales_dict(dict):
+'''Predefines keys of the dict'''
+
+
+class SalesDict(dict):
     products = ""
     for sale in s_list:
         products += sale.product + ","
@@ -217,11 +220,11 @@ class Sales_dict(dict):
     _keys = products.split(',')
 
     def __init__(self, valtype=int):
-        for key in Sales_dict._keys:
+        for key in SalesDict._keys:
             self[key] = 0
 
     def __setitem__(self, key, val):
-        if key not in Sales_dict._keys:
+        if key not in SalesDict._keys:
             raise KeyError
         dict.__setitem__(self, key, val)
 
@@ -230,7 +233,7 @@ def return_queries_sales(args):
     assert len(['start']) == 1 and len(['end']) == 1
     start_date = datetime.datetime.strptime(args['start'], "%Y-%m-%d")  # Convert to datetime
     end_date = datetime.datetime.strptime(args['end'], "%Y-%m-%d")  # Convert to datetime
-    sales_dict = Sales_dict()
+    sales_dict = SalesDict()
 
     for sale in s_list:
         if start_date < sale.sold_date < end_date:
