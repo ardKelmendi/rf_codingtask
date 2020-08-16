@@ -1,4 +1,6 @@
 import datetime
+import operator
+
 from flask import make_response
 from flask import Flask, request, jsonify
 from models import Category, Product, Sales
@@ -11,10 +13,13 @@ app = Flask(__name__)
 
 # simple `dataset` ~ dummy data
 p_list = [Product(1, 'fish', '1234', '235', 'sea', 'kg'), Product(2, 'chicken', '154', '25', 'meat', 'kg')]
-s_list = [Sales(1, '512', 50, datetime.datetime(2020, 5, 17)), Sales(2, '512', 50, datetime.datetime(2019, 4, 17))]
+s_list = [Sales(1, 'fish sticks', 40, datetime.datetime(2020, 5, 17)),
+          Sales(2, 'chicken fingers', 50, datetime.datetime(2019, 4, 17)),
+          Sales(3, 'chicken fingers', 2, datetime.datetime(2019, 4, 18)),
+          Sales(4, 'chips', 35, datetime.datetime(2019, 8, 17))]
 c_list = [Category(1, 'import'), Category(2, 'export')]
 
-'''handels get methods with different directories without "id" as specified on the task'''
+'''handles GET requests with different directories without "id" as specified on the task'''
 
 
 @app.route('/')
@@ -25,18 +30,22 @@ def handler(categories):
         if not query_params:
             return getRequest_all(categories)
         else:
-            return return_queries(query_params)
+            if categories == "products":
+                return return_queries_products(query_params)
+            elif categories == "sales":
+                return return_queries_sales(query_params)
+            else:
+                return make_response(jsonify({"error": "query not suppported"}), 404)
 
 
-'''Handels the GET PUT and POST requests checking which `category` it falls to getting the data
+'''Handles the GET PUT and POST requests checking which `category` it falls to getting the data
     checking if the data already exists to update it or create a new one for PUT and POST
-    Handels return JSON format for GET requests without queris'''
+    Handles return JSON format for GET requests without queries'''
 
 
 @app.route('/')
 @app.route('/api/<categories>/<int:request_id>', methods=['GET', 'PUT', 'POST'])
-def productFunction(categories, request_id):
-    query_params = normalize_query(request.args)
+def req_handler(categories, request_id):
     if request.method == 'GET':
         return getRequest_byId(categories, request_id)
     elif request.method == 'POST':
@@ -135,6 +144,7 @@ def get_json_sales(req_data):
 
 '''Adds a new category'''
 
+
 def add_category(id, name):
     c_list.append(Category(id, name))
     return make_response(jsonify({"message": "Collection created"}), 201)
@@ -160,24 +170,27 @@ def add_sale(id, product, units_sold, sold_date):
 '''Does the logic to return the queries as specifed'''
 
 
-# Implement an endpoint which can be used to select/filter the products by their quantity - using
-# the greater_than and less_than query parameters.
-def return_queries(args):
-    assert len(['quantity_gt']) == 1
-    assert len(['quantity_lt']) == 1
+def assert_and_retrunBounds(args):
+    assert len(['quantity_gt']) == 1 or len(['quantity_lt']) == 1
     left_bound = int(args['quantity_gt'])
     right_bound = int(args['quantity_lt'])
     data = []
+    return data, left_bound, right_bound
 
-    if "quantity_gt" in args and "quantity_lt" in args: # both queries
+
+# Implement an endpoint which can be used to select/filter the products by their quantity - using
+# the greater_than and less_than query parameters.
+def return_queries_products(args):
+    data, left_bound, right_bound = assert_and_retrunBounds(args)
+    if "quantity_gt" in args and "quantity_lt" in args:  # both queries
         for pl in s_list:
             if left_bound < pl.units_sold < right_bound:
                 data.append(pl.serialize)
-    elif "quantity_gt" in args: # only greater then query
+    elif "quantity_gt" in args:  # only greater then query
         for pl in s_list:
             if left_bound < pl.units_sold:
                 data.append(pl.serialize)
-    elif "quantity_lt" in args: # only less than query
+    elif "quantity_lt" in args:  # only less than query
         for pl in s_list:
             if pl.units_sold < right_bound:
                 data.append(pl.serialize)
@@ -188,6 +201,50 @@ def return_queries(args):
         return make_response(jsonify({"error": "no such product"}), 404)
 
     return jsonify(data)
+
+
+class sale_dict:
+    def __init__(self, name, units):
+        self.name = name
+        self.units = units
+
+
+class Sales_dict(dict):
+    products = ""
+    for sale in s_list:
+        products += sale.product + ","
+
+    _keys = products.split(',')
+
+    def __init__(self, valtype=int):
+        for key in Sales_dict._keys:
+            self[key] = 0
+
+    def __setitem__(self, key, val):
+        if key not in Sales_dict._keys:
+            raise KeyError
+        dict.__setitem__(self, key, val)
+
+
+def return_queries_sales(args):
+    assert len(['start']) == 1 and len(['end']) == 1
+    start_date = datetime.datetime.strptime(args['start'], "%Y-%m-%d")  # Convert to datetime
+    end_date = datetime.datetime.strptime(args['end'], "%Y-%m-%d")  # Convert to datetime
+    sales_dict = Sales_dict()
+
+    for sale in s_list:
+        if start_date < sale.sold_date < end_date:
+            print(sales_dict[sale.product])
+            sales_dict[sale.product] += sale.units_sold
+
+    sorted_sales2 = {k: v for k, v in sorted(sales_dict.items(), key=lambda item: item[1])}
+
+    second_most_sold_item = sorted(sales_dict.items(), key=operator.itemgetter(1))[-2] # sort by value and return last 2nd last element
+    first = second_most_sold_item[0]
+    second = second_most_sold_item[1]
+
+    return make_response(jsonify({"message": "Second most sold item '" + second_most_sold_item[0] + "' with '"
+                                             + str(second_most_sold_item[1]) + "' units"}), 200)
 
 
 '''itereates through the list and if it finds the 'data' returns true and the Object, False and None otherwise '''
@@ -201,6 +258,7 @@ def searchTarget(id, list):
 
 
 '''returns the requested target or none'''
+
 
 def requestInData(id, category):
     if category == "categories":
